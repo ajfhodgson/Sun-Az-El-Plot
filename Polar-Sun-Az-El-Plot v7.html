@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Position Plotter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .input-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 15px;
+            border: 2px solid rgba(102, 126, 234, 0.2);
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 0.95em;
+        }
+        
+        input, select {
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        button {
+            grid-column: 1 / -1;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .chart-container {
+            position: relative;
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .download-btn {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            padding: 12px 25px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: white;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        
+        .loading {
+            background: rgba(255, 193, 7, 0.1);
+            color: #856404;
+            border: 2px solid rgba(255, 193, 7, 0.2);
+        }
+        
+        .error {
+            background: rgba(220, 53, 69, 0.1);
+            color: #721c24;
+            border: 2px solid rgba(220, 53, 69, 0.2);
+        }
+        
+        .info {
+            background: rgba(13, 202, 240, 0.1);
+            color: #055160;
+            border: 2px solid rgba(13, 202, 240, 0.2);
+            margin-top: 20px;
+            text-align: left;
+        }
+        
+        canvas {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌞 Solar Position Plotter</h1>
+        
+        <div class="input-group">
+            <div class="form-group">
+                <label for="latitude">Latitude (°)</label>
+                <input type="number" id="latitude" value="52.0" step="0.1" min="-90" max="90" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="longitude">Longitude (°)</label>
+                <input type="number" id="longitude" value="0.0" step="0.1" min="-180" max="180" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="year">Year</label>
+                <input type="number" id="year" value="2024" min="1900" max="2100" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="interval">Time Interval (minutes)</label>
+                <select id="interval">
+                    <option value="10">10 minutes</option>
+                    <option value="15" selected>15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="60">1 hour</option>
+                </select>
+            </div>
+            
+            <button onclick="generatePlot()">Generate Solar Position Plot</button>
+        </div>
+        
+        <div id="status"></div>
+        
+        <div class="chart-container" id="chartContainer" style="display: none;">
+            <canvas id="solarChart" width="800" height="800"></canvas>
+            <a id="downloadBtn" class="download-btn" style="display: none;">📥 Download High-Res PNG</a>
+        </div>
+        
+        <div class="info">
+            <h3>How to read this chart:</h3>
+            <ul>
+                <li><strong>Radial Direction:</strong> Points outward from center represent higher sun elevation angles</li>
+                <li><strong>Angular Position:</strong> Azimuth angle (North at top, East at right, South at bottom, West at left)</li>
+                <li><strong>Colors:</strong> Each month has a distinct color - watch how the sun's path changes throughout the year</li>
+                <li><strong>Black Circle:</strong> Represents the horizon (elevation = 0°)</li>
+                <li><strong>Hour Markers:</strong> Larger dots mark each hour, smaller dots show intermediate intervals</li>
+                <li><strong>Gray Points:</strong> Sun below horizon (nighttime)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Solar position calculation functions
+        function toRadians(degrees) {
+            return degrees * (Math.PI / 180);
+        }
+        
+        function toDegrees(radians) {
+            return radians * (180 / Math.PI);
+        }
+        
+        function julianDay(date) {
+            const a = Math.floor((14 - date.getMonth() - 1) / 12);
+            const y = date.getFullYear() + 4800 - a;
+            const m = date.getMonth() + 1 + 12 * a - 3;
+            return date.getDate() + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) - 32045;
+        }
+        
+        function solarPosition(date, latitude, longitude) {
+            const lat = toRadians(latitude);
+            const jd = julianDay(date);
+            const n = jd - 2451545.0;
+            
+            // More accurate solar position calculation including equation of time
+            const L = (280.460 + 0.9856474 * n) % 360; // Mean longitude of sun
+            const g = toRadians((357.528 + 0.9856003 * n) % 360); // Mean anomaly
+            const lambda = toRadians(L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)); // True longitude
+            
+            // Obliquity of ecliptic
+            const obliquity = toRadians(23.439 - 0.0000004 * n);
+            
+            // Right ascension and declination
+            const alpha = Math.atan2(Math.cos(obliquity) * Math.sin(lambda), Math.cos(lambda));
+            const delta = Math.asin(Math.sin(obliquity) * Math.sin(lambda));
+            
+            // Equation of time (in minutes)
+            const eot = 4 * toDegrees(toRadians(L) - 0.0057183 - alpha);
+            
+            // Local solar time
+            const hours = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
+            const solarTime = hours + eot / 60; // Apply equation of time correction
+            
+            // Hour angle
+            const h = toRadians(15 * (solarTime - 12) + longitude);
+            
+            // Solar elevation and azimuth
+            const elevation = Math.asin(Math.sin(lat) * Math.sin(delta) + Math.cos(lat) * Math.cos(delta) * Math.cos(h));
+            const azimuth = Math.atan2(Math.sin(h), Math.cos(h) * Math.sin(lat) - Math.tan(delta) * Math.cos(lat));
+            
+            let azimuthDeg = toDegrees(azimuth);
+            if (azimuthDeg < 0) azimuthDeg += 360;
+            
+            return {
+                elevation: toDegrees(elevation),
+                azimuth: azimuthDeg
+            };
+        }
+        
+        function generatePlot() {
+            const latitude = parseFloat(document.getElementById('latitude').value);
+            const longitude = parseFloat(document.getElementById('longitude').value);
+            const year = parseInt(document.getElementById('year').value);
+            const interval = parseInt(document.getElementById('interval').value);
+            
+            if (isNaN(latitude) || isNaN(longitude) || isNaN(year)) {
+                showStatus('Please enter valid latitude, longitude, and year values.', 'error');
+                return;
+            }
+            
+            if (latitude < -90 || latitude > 90) {
+                showStatus('Latitude must be between -90 and 90 degrees.', 'error');
+                return;
+            }
+            
+            if (longitude < -180 || longitude > 180) {
+                showStatus('Longitude must be between -180 and 180 degrees.', 'error');
+                return;
+            }
+            
+            showStatus('Calculating solar positions... This may take a moment.', 'loading');
+            document.querySelector('button').disabled = true;
+            
+            setTimeout(() => {
+                try {
+                    const data = calculateSolarData(latitude, longitude, year, interval);
+                    createPolarChart(data, latitude, longitude);
+                    showStatus('Solar position chart generated successfully!', 'success');
+                } catch (error) {
+                    showStatus('Error generating chart: ' + error.message, 'error');
+                }
+                document.querySelector('button').disabled = false;
+            }, 100);
+        }
+        
+        function calculateSolarData(latitude, longitude, year, interval) {
+            const data = [];
+            const monthColors = [
+                '#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080',
+                '#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080'
+            ];
+            
+            // Calculate for EVERY day of the year to capture analemma patterns
+            for (let month = 0; month < 12; month++) {
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                
+                for (let day = 1; day <= daysInMonth; day++) { // Every day, not sampling
+                    for (let minutes = 0; minutes < 1440; minutes += interval) {
+                        const date = new Date(year, month, day, 0, minutes, 0);
+                        const pos = solarPosition(date, latitude, longitude);
+                        
+                        const isHourly = minutes % 60 === 0;
+                        
+                        data.push({
+                            azimuth: pos.azimuth,
+                            elevation: pos.elevation,
+                            month: month,
+                            color: monthColors[month],
+                            isHourly: isHourly,
+                            hour: Math.floor(minutes / 60),
+                            isAboveHorizon: pos.elevation > 0
+                        });
+                    }
+                }
+            }
+            
+            return data;
+        }
+        
+        function createPolarChart(data, latitude, longitude) {
+            const canvas = document.getElementById('solarChart');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = 800;
+            canvas.height = 800;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const maxRadius = Math.min(centerX, centerY) - 50;
+            
+            // Draw background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw concentric circles for elevation
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            for (let elev = -90; elev <= 90; elev += 30) {
+                const r = maxRadius * (elev + 90) / 180;
+                if (r > 0) {
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, r, 0, 2 * Math.PI);
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw horizon circle (elevation = 0) in thick black
+            const horizonRadius = maxRadius * 90 / 180;
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, horizonRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // Draw azimuth lines
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            for (let az = 0; az < 360; az += 30) {
+                const angle = toRadians(az - 90); // Adjust so North is at top
+                const x1 = centerX + 20 * Math.cos(angle);
+                const y1 = centerY + 20 * Math.sin(angle);
+                const x2 = centerX + maxRadius * Math.cos(angle);
+                const y2 = centerY + maxRadius * Math.sin(angle);
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+            
+            // Draw direction labels
+            ctx.fillStyle = '#333333';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const labelRadius = maxRadius + 30;
+            const directions = [
+                {label: 'N', angle: 0},
+                {label: 'NE', angle: 45},
+                {label: 'E', angle: 90},
+                {label: 'SE', angle: 135},
+                {label: 'S', angle: 180},
+                {label: 'SW', angle: 225},
+                {label: 'W', angle: 270},
+                {label: 'NW', angle: 315}
+            ];
+            
+            directions.forEach(dir => {
+                const angle = toRadians(dir.angle - 90);
+                const x = centerX + labelRadius * Math.cos(angle);
+                const y = centerY + labelRadius * Math.sin(angle);
+                ctx.fillText(dir.label, x, y);
+            });
+            
+            // Draw elevation labels
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#666666';
+            ctx.font = '12px Arial';
+            for (let elev = -60; elev <= 90; elev += 30) {
+                const r = maxRadius * (elev + 90) / 180;
+                if (r > 10) {
+                    ctx.fillText(elev + '°', centerX + r + 5, centerY - 5);
+                }
+            }
+            
+            // Plot data points
+            const monthColors = ['#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080', '#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080'];
+            
+            data.forEach(point => {
+                const r = maxRadius * (point.elevation + 90) / 180;
+                const angle = toRadians(point.azimuth - 90); // North at top
+                const x = centerX + r * Math.cos(angle);
+                const y = centerY + r * Math.sin(angle);
+                
+                ctx.fillStyle = point.isAboveHorizon ? monthColors[point.month] : '#808080';
+                ctx.globalAlpha = point.isAboveHorizon ? 0.8 : 0.3;
+                
+                ctx.beginPath();
+                const radius = point.isHourly ? 3 : 1;
+                ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+            
+            ctx.globalAlpha = 1.0;
+            
+            // Add title
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Solar Position Throughout ${document.getElementById('year').value}`, centerX, 30);
+            ctx.font = '14px Arial';
+            ctx.fillText(`Latitude: ${latitude}°, Longitude: ${longitude}°`, centerX, 50);
+            
+            // Show chart container
+            document.getElementById('chartContainer').style.display = 'block';
+            setupDownload();
+        }
+        
+        function setupDownload() {
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.style.display = 'block';
+            downloadBtn.onclick = function() {
+                const canvas = document.getElementById('solarChart');
+                
+                // Create high-resolution version
+                const link = document.createElement('a');
+                link.download = `solar-position-lat${document.getElementById('latitude').value}-lon${document.getElementById('longitude').value}.png`;
+                link.href = canvas.toDataURL('image/png', 1.0);
+                link.click();
+            };
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        // Generate initial plot
+        window.addEventListener('load', () => {
+            setTimeout(generatePlot, 500);
+        });
+    </script>
+</body>
+</html>
