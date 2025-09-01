@@ -178,8 +178,8 @@
             </div>
             
             <div class="form-group">
-                <label for="year">Year</label>
-                <input type="number" id="year" value="2024" min="1900" max="2100" required>
+                <label for="declination">Declination West of South (°)</label>
+                <input type="number" id="declination" value="0.0" step="0.1" min="-180" max="180">
             </div>
             
             <div class="form-group">
@@ -190,6 +190,11 @@
                     <option value="30">30 minutes</option>
                     <option value="60">1 hour</option>
                 </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="motto">Motto or Address</label>
+                <input type="text" id="motto" placeholder="e.g., Observatory Name, Your Address..." maxlength="100">
             </div>
             
             <button onclick="generatePlot()">Generate Solar Position Plot</button>
@@ -275,11 +280,13 @@
         function generatePlot() {
             const latitude = parseFloat(document.getElementById('latitude').value);
             const longitude = parseFloat(document.getElementById('longitude').value);
-            const year = parseInt(document.getElementById('year').value);
+            const declination = parseFloat(document.getElementById('declination').value) || 0;
+            const motto = document.getElementById('motto').value || '';
+            const year = 2025; // Fixed year
             const interval = parseInt(document.getElementById('interval').value);
             
-            if (isNaN(latitude) || isNaN(longitude) || isNaN(year)) {
-                showStatus('Please enter valid latitude, longitude, and year values.', 'error');
+            if (isNaN(latitude) || isNaN(longitude)) {
+                showStatus('Please enter valid latitude and longitude values.', 'error');
                 return;
             }
             
@@ -299,7 +306,7 @@
             setTimeout(() => {
                 try {
                     const data = calculateSolarData(latitude, longitude, year, interval);
-                    createPolarChart(data, latitude, longitude);
+                    createPolarChart(data, latitude, longitude, declination, motto);
                     showStatus('Solar position chart generated successfully!', 'success');
                 } catch (error) {
                     showStatus('Error generating chart: ' + error.message, 'error');
@@ -344,7 +351,7 @@
             return data;
         }
         
-        function createPolarChart(data, latitude, longitude) {
+        function createPolarChart(data, latitude, longitude, declination, motto) {
             const canvas = document.getElementById('solarChart');
             const ctx = canvas.getContext('2d');
             
@@ -359,15 +366,20 @@
             const centerY = canvas.height / 2;
             const maxRadius = Math.min(centerX, centerY) - 50;
             
+            // Define elevation range: -70° to +70°
+            const minElev = -70;
+            const maxElev = 70;
+            const elevRange = maxElev - minElev;
+            
             // Draw background
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw concentric circles for elevation
+            // Draw concentric circles for elevation every 35 degrees
             ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 1;
-            for (let elev = -90; elev <= 90; elev += 30) {
-                const r = maxRadius * (elev + 90) / 180;
+            for (let elev = minElev; elev <= maxElev; elev += 35) {
+                const r = maxRadius * (elev - minElev) / elevRange;
                 if (r > 0) {
                     ctx.beginPath();
                     ctx.arc(centerX, centerY, r, 0, 2 * Math.PI);
@@ -376,18 +388,18 @@
             }
             
             // Draw horizon circle (elevation = 0) in thick black
-            const horizonRadius = maxRadius * 90 / 180;
+            const horizonRadius = maxRadius * (0 - minElev) / elevRange;
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.arc(centerX, centerY, horizonRadius, 0, 2 * Math.PI);
             ctx.stroke();
             
-            // Draw azimuth lines
+            // Draw azimuth lines every 15 degrees
             ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 1;
-            for (let az = 0; az < 360; az += 30) {
-                const angle = toRadians(az - 90); // -90 to put South at top
+            for (let az = 0; az < 360; az += 15) {
+                const angle = toRadians(az - 90 + declination); // Apply declination rotation
                 const x1 = centerX + 20 * Math.cos(angle);
                 const y1 = centerY + 20 * Math.sin(angle);
                 const x2 = centerX + maxRadius * Math.cos(angle);
@@ -399,7 +411,7 @@
                 ctx.stroke();
             }
             
-            // Draw direction labels
+            // Draw direction labels (keep text horizontal despite rotation)
             ctx.fillStyle = '#333333';
             ctx.font = '16px Arial';
             ctx.textAlign = 'center';
@@ -407,18 +419,18 @@
             
             const labelRadius = maxRadius + 30;
             const directions = [
-                {label: 'S', angle: 0},    // South at top (0°)
+                {label: 'S', angle: 0},    // South at reference position
                 {label: 'SW', angle: 45},
-                {label: 'W', angle: 90},   // West at right (90°)
+                {label: 'W', angle: 90},   // West
                 {label: 'NW', angle: 135},
-                {label: 'N', angle: 180},  // North at bottom (180°)
+                {label: 'N', angle: 180},  // North
                 {label: 'NE', angle: 225},
-                {label: 'E', angle: 270},  // East at left (270°)
+                {label: 'E', angle: 270},  // East
                 {label: 'SE', angle: 315}
             ];
             
             directions.forEach(dir => {
-                const angle = toRadians(dir.angle - 90); // -90 to put South at top
+                const angle = toRadians(dir.angle - 90 + declination); // Apply declination rotation
                 const x = centerX + labelRadius * Math.cos(angle);
                 const y = centerY + labelRadius * Math.sin(angle);
                 ctx.fillText(dir.label, x, y);
@@ -428,8 +440,8 @@
             ctx.textAlign = 'left';
             ctx.fillStyle = '#666666';
             ctx.font = '12px Arial';
-            for (let elev = -60; elev <= 90; elev += 30) {
-                const r = maxRadius * (elev + 90) / 180;
+            for (let elev = minElev; elev <= maxElev; elev += 35) {
+                const r = maxRadius * (elev - minElev) / elevRange;
                 if (r > 10) {
                     ctx.fillText(elev + '°', centerX + r + 5, centerY - 5);
                 }
@@ -441,8 +453,11 @@
             const hourlyMaxData = {}; // Track max elevation for each hour for labeling
             
             data.forEach(point => {
-                const r = maxRadius * (point.elevation + 90) / 180;
-                const angle = toRadians(point.azimuth - 90); // -90 to put South at top
+                // Skip points outside elevation range
+                if (point.elevation < minElev || point.elevation > maxElev) return;
+                
+                const r = maxRadius * (point.elevation - minElev) / elevRange;
+                const angle = toRadians(point.azimuth - 90 + declination); // Apply declination rotation
                 const x = centerX + r * Math.cos(angle);
                 const y = centerY + r * Math.sin(angle);
                 
@@ -511,13 +526,16 @@
             // Store CSV data globally for download
             window.solarCsvData = csvData;
             
-            // Add title
+            // Add coordinate info at top and motto at bottom
             ctx.fillStyle = '#333333';
-            ctx.font = 'bold 18px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`Solar Position Throughout ${document.getElementById('year').value}`, centerX, 30);
             ctx.font = '14px Arial';
-            ctx.fillText(`Latitude: ${latitude}°, Longitude: ${longitude}°`, centerX, 50);
+            ctx.textAlign = 'center';
+            ctx.fillText(`Latitude: ${latitude}°, Longitude: ${longitude}°, Declination: ${declination}°`, centerX, 30);
+            
+            // Add motto at bottom if provided
+            if (motto.trim()) {
+                ctx.fillText(motto, centerX, canvas.height - 20);
+            }
             
             // Show chart container
             document.getElementById('chartContainer').style.display = 'block';
