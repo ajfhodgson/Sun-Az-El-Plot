@@ -333,7 +333,9 @@
                             color: monthColors[month],
                             isHourly: isHourly,
                             hour: Math.floor(minutes / 60),
-                            isAboveHorizon: pos.elevation > 0
+                            isAboveHorizon: pos.elevation > 0,
+                            date: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+                            time: `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
                         });
                     }
                 }
@@ -385,7 +387,7 @@
             ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 1;
             for (let az = 0; az < 360; az += 30) {
-                const angle = toRadians(az - 90); // Adjust so North is at top
+                const angle = toRadians(az - 90); // -90 to put South at top
                 const x1 = centerX + 20 * Math.cos(angle);
                 const y1 = centerY + 20 * Math.sin(angle);
                 const x2 = centerX + maxRadius * Math.cos(angle);
@@ -405,18 +407,18 @@
             
             const labelRadius = maxRadius + 30;
             const directions = [
-                {label: 'N', angle: 0},
-                {label: 'NE', angle: 45},
-                {label: 'E', angle: 90},
-                {label: 'SE', angle: 135},
-                {label: 'S', angle: 180},
-                {label: 'SW', angle: 225},
-                {label: 'W', angle: 270},
-                {label: 'NW', angle: 315}
+                {label: 'S', angle: 0},    // South at top (0°)
+                {label: 'SW', angle: 45},
+                {label: 'W', angle: 90},   // West at right (90°)
+                {label: 'NW', angle: 135},
+                {label: 'N', angle: 180},  // North at bottom (180°)
+                {label: 'NE', angle: 225},
+                {label: 'E', angle: 270},  // East at left (270°)
+                {label: 'SE', angle: 315}
             ];
             
             directions.forEach(dir => {
-                const angle = toRadians(dir.angle - 90);
+                const angle = toRadians(dir.angle - 90); // -90 to put South at top
                 const x = centerX + labelRadius * Math.cos(angle);
                 const y = centerY + labelRadius * Math.sin(angle);
                 ctx.fillText(dir.label, x, y);
@@ -433,14 +435,39 @@
                 }
             }
             
-            // Plot data points
+            // Plot data points and collect CSV data
             const monthColors = ['#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080', '#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080'];
+            const csvData = [];
+            const hourlyMaxData = {}; // Track max elevation for each hour for labeling
             
             data.forEach(point => {
                 const r = maxRadius * (point.elevation + 90) / 180;
-                const angle = toRadians(point.azimuth - 90); // North at top
+                const angle = toRadians(point.azimuth - 90); // -90 to put South at top
                 const x = centerX + r * Math.cos(angle);
                 const y = centerY + r * Math.sin(angle);
+                
+                // Track maximum elevation for each hour for labeling
+                if (point.isHourly && point.isAboveHorizon) {
+                    const hour = point.hour;
+                    if (!hourlyMaxData[hour] || point.elevation > hourlyMaxData[hour].elevation) {
+                        hourlyMaxData[hour] = {
+                            elevation: point.elevation,
+                            azimuth: point.azimuth,
+                            x: x,
+                            y: y
+                        };
+                    }
+                }
+                
+                // Store CSV data
+                csvData.push({
+                    date: point.date,
+                    time: point.time,
+                    azimuth: point.azimuth.toFixed(2),
+                    elevation: point.elevation.toFixed(2),
+                    plot_x: ((x - centerX) / maxRadius).toFixed(4),
+                    plot_y: ((y - centerY) / maxRadius).toFixed(4)
+                });
                 
                 ctx.fillStyle = point.isAboveHorizon ? monthColors[point.month] : '#808080';
                 ctx.globalAlpha = point.isAboveHorizon ? 0.8 : 0.3;
@@ -452,6 +479,37 @@
             });
             
             ctx.globalAlpha = 1.0;
+            
+            // Add hour labels just outside the maximum elevation points (summer solstice positions)
+            ctx.fillStyle = '#333333';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1;
+            
+            Object.keys(hourlyMaxData).forEach(hour => {
+                const data = hourlyMaxData[hour];
+                // Place label slightly outside the maximum elevation point
+                const labelRadius = Math.sqrt((data.x - centerX)**2 + (data.y - centerY)**2) + 15;
+                const angle = Math.atan2(data.y - centerY, data.x - centerX);
+                const labelX = centerX + labelRadius * Math.cos(angle);
+                const labelY = centerY + labelRadius * Math.sin(angle);
+                
+                // Draw small circle background
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(labelX, labelY, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Draw hour number
+                ctx.fillStyle = '#333333';
+                ctx.fillText(hour, labelX, labelY);
+            });
+            
+            // Store CSV data globally for download
+            window.solarCsvData = csvData;
             
             // Add title
             ctx.fillStyle = '#333333';
@@ -469,15 +527,125 @@
         function setupDownload() {
             const downloadBtn = document.getElementById('downloadBtn');
             downloadBtn.style.display = 'block';
+            downloadBtn.innerHTML = '📥 Download PNG | 📄 Download CSV';
+            
             downloadBtn.onclick = function() {
-                const canvas = document.getElementById('solarChart');
+                // Create dropdown menu for download options
+                const menu = document.createElement('div');
+                menu.style.cssText = `
+                    position: absolute;
+                    background: white;
+                    border: 2px solid #ccc;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    z-index: 1000;
+                    padding: 10px;
+                    margin-top: 5px;
+                `;
                 
-                // Create high-resolution version
+                const pngBtn = document.createElement('button');
+                pngBtn.textContent = '📥 Download PNG Image';
+                pngBtn.style.cssText = `
+                    display: block;
+                    width: 100%;
+                    margin: 5px 0;
+                    padding: 8px 12px;
+                    border: none;
+                    background: #28a745;
+                    color: white;
+                    border-radius: 4px;
+                    cursor: pointer;
+                `;
+                pngBtn.onclick = downloadPNG;
+                
+                const csvBtn = document.createElement('button');
+                csvBtn.textContent = '📄 Download CSV Data';
+                csvBtn.style.cssText = `
+                    display: block;
+                    width: 100%;
+                    margin: 5px 0;
+                    padding: 8px 12px;
+                    border: none;
+                    background: #007bff;
+                    color: white;
+                    border-radius: 4px;
+                    cursor: pointer;
+                `;
+                csvBtn.onclick = downloadCSV;
+                
+                menu.appendChild(pngBtn);
+                menu.appendChild(csvBtn);
+                
+                // Position menu below button
+                const rect = downloadBtn.getBoundingClientRect();
+                menu.style.left = rect.left + 'px';
+                menu.style.top = (rect.bottom + window.scrollY) + 'px';
+                
+                document.body.appendChild(menu);
+                
+                // Remove menu when clicking elsewhere
+                setTimeout(() => {
+                    const removeMenu = (e) => {
+                        if (!menu.contains(e.target)) {
+                            document.body.removeChild(menu);
+                            document.removeEventListener('click', removeMenu);
+                        }
+                    };
+                    document.addEventListener('click', removeMenu);
+                }, 100);
+            };
+        }
+        
+        function downloadPNG() {
+            const canvas = document.getElementById('solarChart');
+            
+            // Create a temporary canvas with higher resolution
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Set higher resolution (2x for crisp output)
+            const scale = 2;
+            tempCanvas.width = canvas.width * scale;
+            tempCanvas.height = canvas.height * scale;
+            tempCtx.scale(scale, scale);
+            
+            // Draw the original canvas content onto the high-res canvas
+            tempCtx.drawImage(canvas, 0, 0);
+            
+            // Create download link
+            tempCanvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.download = `solar-position-lat${document.getElementById('latitude').value}-lon${document.getElementById('longitude').value}.png`;
-                link.href = canvas.toDataURL('image/png', 1.0);
+                link.href = url;
+                document.body.appendChild(link);
                 link.click();
-            };
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 'image/png', 1.0);
+        }
+        
+        function downloadCSV() {
+            if (!window.solarCsvData) {
+                alert('No data available for download');
+                return;
+            }
+            
+            const headers = ['date', 'time', 'azimuth', 'elevation', 'plot_x', 'plot_y'];
+            const csvContent = [
+                headers.join(','),
+                ...window.solarCsvData.map(row => headers.map(header => row[header]).join(','))
+            ].join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `solar-position-data-lat${document.getElementById('latitude').value}-lon${document.getElementById('longitude').value}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
         
         function showStatus(message, type) {
