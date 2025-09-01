@@ -26,7 +26,7 @@ all_months = []
 all_times = []
 
 # Iterate over each day of the year and calculate the az/el at 15 minute intervals
-dates = pd.date_range(start='2024-01-01', end='2024-12-31', freq='D', tz=tz)
+dates = pd.date_range(start='2025-01-01', end='2025-12-31', freq='D', tz=tz)
 
 for date in dates:
     times = pd.date_range(start=date, end=date + pd.Timedelta(days=1), freq='15min', tz=tz)
@@ -47,6 +47,15 @@ all_azimuths = np.array(all_azimuths)
 all_elevations = np.array(all_elevations)
 all_months = np.array(all_months)
 all_times = pd.to_datetime(all_times)
+
+# Create a DataFrame for CSV export
+df_export = pd.DataFrame({
+    'Date': all_times.date,
+    'Time': all_times.time,
+    'Azimuth': all_azimuths,
+    'Elevation': all_elevations
+})
+df_export.to_csv("Polar-Sun-Az-El-Plot-Data.csv", index=False)
 
 # Create masks for hourly and non-hourly points
 hour_mask = all_times.minute == 0  # Points on the hour
