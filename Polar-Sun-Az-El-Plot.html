@@ -7,6 +7,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-4VZXKDBTD5"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-4VZXKDBTD5');
+    </script>
     <title>Solar Az/El Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
@@ -182,7 +190,7 @@
             </div>
             
             <div class="form-group">
-                <label for="declination">Declination West of South (°)</label>
+                <label for="declination">Declination East of South (°)</label>
                 <input type="number" id="declination" value="0.0" step="0.1" min="-180" max="180">
             </div>
 
@@ -203,7 +211,7 @@
             
             <div class="form-group">
                 <label for="motto">Motto or Address</label>
-                <input type="text" id="motto" placeholder="e.g., Observatory Name, Your Address..." maxlength="100">
+                <input type="text" id="motto" value="Your motto, message, or address here" maxlength="100">
             </div>
             
             <button id="generatePlotBtn">Generate Solar Position Plot</button>
@@ -219,11 +227,11 @@
         <div class="info">
             <h3>How to read this chart:</h3>
             <ul>
-                <li><strong>The sun's position is shown following the figure-of-eight 'analemma' for specific times of the day elevation angles</li>
-                <li><strong>The figure of eight is due to solar time being variously behind and ahead of clock time ('mean time')</li>
-                <li><strong>There is a dot for every day of the year, plotted radially (azimuth/bearing round the circle and elevation along the radius</li>
-                <li><strong>The black circle represents the horizon (elevation = 0°) - the sun goes below during night-time</li>
-                <li><strong>Months are indicated by colours, Jul - Dec and Jan - Jun are Red, Orange, Yellow, Green, Blue, Purple in sequence</li>
+                <li>The sun's position is shown following the figure-of-eight 'analemma' for specific times of the day elevation angles</li>
+                <li>The figure of eight is due to solar time being variously behind and ahead of clock time ('mean time')</li>
+                <li>There is a dot for every day of the year, plotted radially (azimuth/bearing round the circle and elevation along the radius</li>
+                <li>The black circle represents the horizon (elevation = 0°) - the sun goes below during night-time</li>
+                <li>Months are indicated by colours, Jul - Dec and Jan - Jun are Red, Orange, Yellow, Green, Blue, Purple in sequence</li>
             </ul>
         </div>
     </div>
@@ -453,13 +461,18 @@
             });
             
             // Draw elevation labels every 30 degrees
-            ctx.textAlign = 'left';
+            ctx.textAlign = 'center';
             ctx.fillStyle = '#666666';
+            ctx.fillStyle = '#333333';
             ctx.font = '12px Arial';
-            for (let elev = minElev; elev <= maxElev; elev += 30) {
-                const r = maxRadius * (elev - minElev) / elevRange;
-                if (r > 10) {
-                    ctx.fillText(elev + '°', centerX + r + 5, centerY - 5);
+            for (let elev = 0; elev <= maxElev; elev += 30) {
+                const rpos = maxRadius * (elev - minElev) / elevRange;
+                const rneg = maxRadius * (-elev - minElev) / elevRange;
+                if (rpos > 10) {
+                    ctx.fillText(elev + '°', centerX + rpos, centerY - 5);
+                }
+                if (rneg > 10) {
+                    ctx.fillText(-elev + '°', centerX + rneg, centerY - 5);
                 }
             }
             
@@ -581,25 +594,21 @@
             // Add month color legend in the bottom right corner
             const legendX = canvas.width - 80;
             const legendY = canvas.height - 140; // Moved down slightly
-            const legendLineHeight = 20; // Increased for bigger font
+            const legendLineHeight = 15; // Increased for bigger font
+            const offset = 16; 
 
-            ctx.font = '14px Arial'; // Bigger font
+            ctx.font = '12px Arial'; // Bigger font
             ctx.textAlign = 'center';
 
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             const legendLayout = [
-                { month: 5, x: 0, y: 0 },   // Jun
-                { month: 6, x: -35, y: 1 },  // Jul
-                { month: 4, x: 35, y: 1 },   // May
-                { month: 7, x: -35, y: 2 },  // Aug
-                { month: 3, x: 35, y: 2 },   // Apr
-                { month: 8, x: -35, y: 3 },  // Sep
-                { month: 2, x: 35, y: 3 },   // Mar
-                { month: 9, x: -35, y: 4 },  // Oct
-                { month: 1, x: 35, y: 4 },   // Feb
-                { month: 10, x: -35, y: 5 }, // Nov
-                { month: 0, x: 35, y: 5 },   // Jan
-                { month: 11, x: 0, y: 6 }    // Dec
+                { month: 5, x: 0, y: 0 },                                         //     Jun centred
+                { month: 6, x: -offset, y: 1 }, { month: 4, x:  offset, y: 1 },   // Jul left, May right
+                { month: 7, x: -offset, y: 2 }, { month: 3, x:  offset, y: 2 },   // Aug left  Apr right
+                { month: 2, x: -offset, y: 3 }, { month: 8, x:  offset, y: 3 },   // Crossing! Mar left Sep right 
+                { month: 1, x: -offset, y: 4 }, { month: 9, x:  offset, y: 4 },   // Feb left, Oct right
+                { month: 0, x: -offset, y: 5 }, { month: 10, x: offset, y: 5 },   // Jan left, Nov right
+                { month: 11, x: 0, y: 6 }                                         //      Dec centred
             ];
 
             legendLayout.forEach(item => {
