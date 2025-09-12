@@ -1,9 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+    // Original code converted from Python by Claude: https://claude.ai/chat/e58a67ca-a8c2-4bdf-86fc-32045c60ab3c
+    // Enhancements made by Gemini: https://gemini.google.com/app/1a83667de0b6b71f
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solar Position Plotter</title>
+    <title>Solar Az/El Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         body {
@@ -181,6 +184,11 @@
                 <label for="declination">Declination West of South (°)</label>
                 <input type="number" id="declination" value="0.0" step="0.1" min="-180" max="180">
             </div>
+
+            <div class="form-group">
+                <label for="hoursOffset">Hours Offset, GMT/UT +</label>
+                <input type="number" id="hoursOffset" value="0" step="1">
+            </div>
             
             <div class="form-group">
                 <label for="interval">Time Interval (minutes)</label>
@@ -210,12 +218,11 @@
         <div class="info">
             <h3>How to read this chart:</h3>
             <ul>
-                <li><strong>Radial Direction:</strong> Points outward from center represent higher sun elevation angles</li>
-                <li><strong>Angular Position:</strong> Azimuth angle (North at top, East at right, South at bottom, West at left)</li>
-                <li><strong>Colors:</strong> Each month has a distinct color - watch how the sun's path changes throughout the year</li>
-                <li><strong>Black Circle:</strong> Represents the horizon (elevation = 0°)</li>
-                <li><strong>Hour Markers:</strong> Larger dots mark each hour, smaller dots show intermediate intervals</li>
-                <li><strong>Gray Points:</strong> Sun below horizon (nighttime)</li>
+                <li><strong>The sun's position is shown following the figure-of-eight 'analemma' for specific times of the day elevation angles</li>
+                <li><strong>The figure of eight is due to solar time being variously behind and ahead of clock time ('mean time')</li>
+                <li><strong>There is a dot for every day of the year, plotted radially (azimuth/bearing round the circle and elevation along the radius</li>
+                <li><strong>The black circle represents the horizon (elevation = 0°) - the sun goes below during night-time</li>
+                <li><strong>Months are indicated by colours, Jul - Dec and Jan - Jun are Red, Orange, Yellow, Green, Blue, Purple in sequence</li>
             </ul>
         </div>
     </div>
@@ -281,6 +288,7 @@
             const latitude = parseFloat(document.getElementById('latitude').value);
             const longitude = parseFloat(document.getElementById('longitude').value);
             const declination = parseFloat(document.getElementById('declination').value) || 0;
+            const hoursOffset = parseInt(document.getElementById('hoursOffset').value) || 0;
             const motto = document.getElementById('motto').value || '';
             const year = 2025; // Fixed year
             const interval = parseInt(document.getElementById('interval').value);
@@ -306,7 +314,7 @@
             setTimeout(() => {
                 try {
                     const data = calculateSolarData(latitude, longitude, year, interval);
-                    createPolarChart(data, latitude, longitude, declination, motto);
+                    createPolarChart(data, latitude, longitude, declination, motto, hoursOffset);
                     showStatus('Solar position chart generated successfully!', 'success');
                 } catch (error) {
                     showStatus('Error generating chart: ' + error.message, 'error');
@@ -351,7 +359,7 @@
             return data;
         }
         
-        function createPolarChart(data, latitude, longitude, declination, motto) {
+        function createPolarChart(data, latitude, longitude, declination, motto, hoursOffset) {
             const canvas = document.getElementById('solarChart');
             const ctx = canvas.getContext('2d');
             
@@ -366,19 +374,26 @@
             const centerY = canvas.height / 2;
             const maxRadius = Math.min(centerX, centerY) - 50;
             
-            // Define elevation range: -70° to +70°
-            const minElev = -70;
-            const maxElev = 70;
+            // Autoscale elevation range
+            let minElevationActual = 90;
+            let maxElevationActual = -90;
+            data.forEach(point => {
+                if (point.elevation < minElevationActual) minElevationActual = point.elevation;
+                if (point.elevation > maxElevationActual) maxElevationActual = point.elevation;
+            });
+
+            const minElev = Math.floor(minElevationActual / 10) * 10;
+            const maxElev = Math.ceil(maxElevationActual / 10) * 10;
             const elevRange = maxElev - minElev;
             
             // Draw background
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw concentric circles for elevation every 35 degrees
+            // Draw concentric circles for elevation every 10 degrees
             ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 1;
-            for (let elev = minElev; elev <= maxElev; elev += 35) {
+            for (let elev = minElev; elev <= maxElev; elev += 10) {
                 const r = maxRadius * (elev - minElev) / elevRange;
                 if (r > 0) {
                     ctx.beginPath();
@@ -436,11 +451,11 @@
                 ctx.fillText(dir.label, x, y);
             });
             
-            // Draw elevation labels
+            // Draw elevation labels every 30 degrees
             ctx.textAlign = 'left';
             ctx.fillStyle = '#666666';
             ctx.font = '12px Arial';
-            for (let elev = minElev; elev <= maxElev; elev += 35) {
+            for (let elev = minElev; elev <= maxElev; elev += 30) {
                 const r = maxRadius * (elev - minElev) / elevRange;
                 if (r > 10) {
                     ctx.fillText(elev + '°', centerX + r + 5, centerY - 5);
@@ -448,7 +463,7 @@
             }
             
             // Plot data points and collect CSV data
-            const monthColors = ['#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080', '#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080'];
+            const monthColors = ['#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080', '#FF0000', '#FFA500', '#FFFF00', '#000000', '#0000FF', '#800080'];
             const csvData = [];
             const hourlyMaxData = {}; // Track max elevation for each hour for labeling
             
@@ -520,21 +535,46 @@
                 
                 // Draw hour number
                 ctx.fillStyle = '#333333';
-                ctx.fillText(hour, labelX, labelY);
+                const displayHour = (parseInt(hour) + hoursOffset + 24) % 24;
+                ctx.fillText(displayHour, labelX, labelY);
             });
             
             // Store CSV data globally for download
             window.solarCsvData = csvData;
             
-            // Add coordinate info at top and motto at bottom
+            // Add coordinate info at top left
             ctx.fillStyle = '#333333';
             ctx.font = '14px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`Latitude: ${latitude}°, Longitude: ${longitude}°, Declination: ${declination}°`, centerX, 30);
+            ctx.textAlign = 'left';
+            ctx.fillText(`Latitude: ${latitude}°`, 20, 30);
+            ctx.fillText(`Longitude: ${longitude}°`, 20, 50);
+            ctx.fillText(`Declination: ${declination}°`, 20, 70);
+            ctx.fillText(`GMT/UT Offset: ${hoursOffset}h`, 20, 90);
             
-            // Add motto at bottom if provided
+            // Add motto at top right if provided
             if (motto.trim()) {
-                ctx.fillText(motto, centerX, canvas.height - 20);
+                ctx.textAlign = 'right';
+                const maxWidth = 200; // Maximum width for the motto text
+                const lineHeight = 20;
+                let x = canvas.width - 20;
+                let y = 30;
+
+                const words = motto.split(' ');
+                let line = '';
+
+                for (let n = 0; n < words.length; n++) {
+                    const testLine = line + words[n] + ' ';
+                    const metrics = ctx.measureText(testLine);
+                    const testWidth = metrics.width;
+                    if (testWidth > maxWidth && n > 0) {
+                        ctx.fillText(line.trim(), x, y);
+                        line = words[n] + ' ';
+                        y += lineHeight;
+                    } else {
+                        line = testLine;
+                    }
+                }
+                ctx.fillText(line.trim(), x, y);
             }
             
             // Show chart container
@@ -686,3 +726,4 @@
     </script>
 </body>
 </html>
+

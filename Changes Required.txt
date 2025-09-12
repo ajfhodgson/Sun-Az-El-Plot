@@ -1,0 +1,17 @@
+Here is a html file that plots the solar az/el for times throughout the year. There are a few changes I'd like made, please.
+At each step, ONLY CHANGE THE MINIMUM number of lines of code - don't rewrite the whole thing so I can't easily check the changes.
+1. I would like an additional user parameter, "Hours Offset, GMT/UT +" added, which changes the hour labels. It does not affect the plot itself.
+2. The label (including lat, long, declination and GMT/UT offset), should be placed in the empty top left hand corner (wrapping the text if necessary)
+3. The motto/address should be placed in the empty top right hand corner (wrapping the text if necessary)
+4. I would like the elevation range to be autoscaled, so that the max and min are multiples of 10 degrees, with grid circles every 10 degrees, labelled every 30 degrees either side of 0 degrees. So for example, if the range of elevations was -48 to +62, I want the range to be -50 to +70, with labels at -30, 0, +30, +60
+5. I would like the attached compass rose png file, correctly orientated, placed in the bottom left hand corner
+6. I would like a 'legend' indicating correspondence between months and colours in the bottom right hand corner.  This should look like:
+  Jul
+Aug Jun
+Sep May
+Oct Apr
+Nov Mar
+Dec Feb
+  Jan 
+with each month written in the same colour used in the main plot, centred nicely and quite compact.
+7. I would like the Download PNG and Download CSV to be two separate buttons, not a nested menu
