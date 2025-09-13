@@ -123,11 +123,14 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
         
-        .download-btn {
-            display: block;
-            width: 200px;
-            margin: 20px auto;
-            background: linear-gradient(45deg, #28a745, #20c997);
+       .download-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+       }
+       
+       .download-btn {
             padding: 12px 25px;
             border-radius: 10px;
             text-decoration: none;
@@ -135,11 +138,26 @@
             text-align: center;
             font-weight: 600;
             transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .download-btn.png {
+            background: linear-gradient(45deg, #28a745, #20c997);
+        }
+        
+        .download-btn.csv {
+            background: linear-gradient(45deg, #007bff, #6610f2);
         }
         
         .download-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        }
+        
+        .download-btn.csv:hover {
+            box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
         }
         
         .status {
@@ -223,7 +241,10 @@
         
         <div class="chart-container" id="chartContainer" style="display: none;">
             <canvas id="solarChart" width="800" height="800"></canvas>
-            <a id="downloadBtn" class="download-btn" style="display: none;">📥 Download High-Res PNG</a>
+            <div class="download-buttons" id="downloadButtons" style="display: none;">
+                <button id="downloadPngBtn" class="download-btn png">📥 Download PNG</button>
+                <button id="downloadCsvBtn" class="download-btn csv">📄 Download CSV</button>
+            </div>
         </div>
         
         <div class="info">
@@ -616,83 +637,42 @@
             legendLayout.forEach(item => {
                 ctx.fillStyle = monthColors[item.month];
                 ctx.fillText(monthNames[item.month], legendX + item.x, legendY + item.y * legendLineHeight);
+
             });
+            
+            // Add PNG image overlay in bottom left
+            const img = new Image();
+            img.onload = function() {
+                // Position in bottom left corner with some padding
+                const qrSize = 80; // Fixed size for QR code
+                const padding = 20;
+                const qrX = padding;
+                const qrY = canvas.height - qrSize - padding;
+                
+                // Draw semi-transparent white background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10);
+                
+                // Draw the image
+                ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+            };
+            
+            const reader = new FileReader();
+            reader.onload = (e) => img.src = e.target.result;
+            reader.readAsDataURL('Compass Rose.png');
             
             // Show chart container
             document.getElementById('chartContainer').style.display = 'block';
-            setupDownload();
+            setupDownloadButtons();
         }
         
-        function setupDownload() {
-            const downloadBtn = document.getElementById('downloadBtn');
-            downloadBtn.style.display = 'block';
-            downloadBtn.innerHTML = '📥 Download PNG | 📄 Download CSV';
-            
-            downloadBtn.onclick = function() {
-                // Create dropdown menu for download options
-                const menu = document.createElement('div');
-                menu.style.cssText = `
-                    position: absolute;
-                    background: white;
-                    border: 2px solid #ccc;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                    z-index: 1000;
-                    padding: 10px;
-                    margin-top: 5px;
-                `;
-                
-                const pngBtn = document.createElement('button');
-                pngBtn.textContent = '📥 Download PNG Image';
-                pngBtn.style.cssText = `
-                    display: block;
-                    width: 100%;
-                    margin: 5px 0;
-                    padding: 8px 12px;
-                    border: none;
-                    background: #28a745;
-                    color: white;
-                    border-radius: 4px;
-                    cursor: pointer;
-                `;
-                pngBtn.onclick = downloadPNG;
-                
-                const csvBtn = document.createElement('button');
-                csvBtn.textContent = '📄 Download CSV Data';
-                csvBtn.style.cssText = `
-                    display: block;
-                    width: 100%;
-                    margin: 5px 0;
-                    padding: 8px 12px;
-                    border: none;
-                    background: #007bff;
-                    color: white;
-                    border-radius: 4px;
-                    cursor: pointer;
-                `;
-                csvBtn.onclick = downloadCSV;
-                
-                menu.appendChild(pngBtn);
-                menu.appendChild(csvBtn);
-                
-                // Position menu below button
-                const rect = downloadBtn.getBoundingClientRect();
-                menu.style.left = rect.left + 'px';
-                menu.style.top = (rect.bottom + window.scrollY) + 'px';
-                
-                document.body.appendChild(menu);
-                
-                // Remove menu when clicking elsewhere
-                setTimeout(() => {
-                    const removeMenu = (e) => {
-                        if (!menu.contains(e.target)) {
-                            document.body.removeChild(menu);
-                            document.removeEventListener('click', removeMenu);
-                        }
-                    };
-                    document.addEventListener('click', removeMenu);
-                }, 100);
-            };
+        function setupDownloadButtons() {
+            const downloadButtons = document.getElementById('downloadButtons');
+            const pngBtn = document.getElementById('downloadPngBtn');
+            const csvBtn = document.getElementById('downloadCsvBtn');
+            downloadButtons.style.display = 'flex';
+            pngBtn.onclick = downloadPNG;
+            csvBtn.onclick = downloadCSV;            
         }
         
         function downloadPNG() {
