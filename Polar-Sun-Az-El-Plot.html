@@ -644,23 +644,21 @@
             const img = new Image();
             img.onload = function() {
                 // Position in bottom left corner with some padding
-                const qrSize = 80; // Fixed size for QR code
+                const qrSize = 140; // Fixed size for QR code
                 const padding = 20;
                 const qrX = padding;
                 const qrY = canvas.height - qrSize - padding;
                 
-                // Draw semi-transparent white background
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.fillRect(qrX - 5, qrY - 5, qrSize + 10, qrSize + 10);
-                
-                // Draw the image
-                ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+                // Draw the image, rotated by declination to match the plot
+                ctx.save(); // Save the current canvas state
+                ctx.translate(qrX + qrSize/2, qrY + qrSize/2); // Move to the center of where the image will be drawn
+                ctx.rotate(toRadians(declination)); // Rotate by declination angle (converted to radians)
+                ctx.drawImage(img, -qrSize/2, -qrSize/2, qrSize, qrSize); // Draw the image centered on the rotation point                
+                ctx.restore(); // Restore the canvas state
             };
             
-            const reader = new FileReader();
-            reader.onload = (e) => img.src = e.target.result;
-            reader.readAsDataURL('Compass Rose.png');
-            
+            img.crossOrigin = 'anonymous'; // Set crossOrigin to avoid tainted canvas issues
+            img.src = 'Compass Rose.png';
             // Show chart container
             document.getElementById('chartContainer').style.display = 'block';
             setupDownloadButtons();
@@ -676,6 +674,7 @@
         }
         
         function downloadPNG() {
+            console.log('downloadPNG function called');
             const canvas = document.getElementById('solarChart');
             
             // Create a temporary canvas with higher resolution
