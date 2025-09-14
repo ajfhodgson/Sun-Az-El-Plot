@@ -660,8 +660,9 @@
 // for local operation (from FILE://) you can have either: bottom left image shown, PNG download blocked - comment out the next line OR
 // bottom left image NOT shown, PNG download allowed - UNcomment out the next line 
 //            img.crossOrigin = 'anonymous'; // Set crossOrigin to avoid tainted canvas issues blocking download
-//            img.src = 'Compass Rose.png';
-            img.src = 'Sun-Az-El QR Code2.png';
+//            img.src = 'Compass Rose.png'; // Transparent, N Up (but plot is S up!)
+//            img.src = 'Sun-Az-El QR Code2.png'; // round-dots QR Code
+            img.src = 'Compass Rose S Up.png'; // Transparent
             // Show chart container
             document.getElementById('chartContainer').style.display = 'block';
             setupDownloadButtons();
