@@ -644,7 +644,7 @@
             const img = new Image();
             img.onload = function() {
                 // Position in bottom left corner with some padding
-                const qrSize = 140; // Fixed size for QR code
+                const qrSize = 130; // Fixed size for QR code
                 const padding = 20;
                 const qrX = padding;
                 const qrY = canvas.height - qrSize - padding;
@@ -657,8 +657,11 @@
                 ctx.restore(); // Restore the canvas state
             };
             
-            img.crossOrigin = 'anonymous'; // Set crossOrigin to avoid tainted canvas issues
-            img.src = 'Compass Rose.png';
+// for local operation (from FILE://) you can have either: bottom left image shown, PNG download blocked - comment out the next line OR
+// bottom left image NOT shown, PNG download allowed - UNcomment out the next line 
+//            img.crossOrigin = 'anonymous'; // Set crossOrigin to avoid tainted canvas issues blocking download
+//            img.src = 'Compass Rose.png';
+            img.src = 'Sun-Az-El QR Code2.png';
             // Show chart container
             document.getElementById('chartContainer').style.display = 'block';
             setupDownloadButtons();
