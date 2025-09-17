@@ -260,6 +260,12 @@
     </div>
 
     <script>
+
+        function getQueryParam(name, defaultValue = null) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name) || defaultValue;
+        }
+    
         // Solar position calculation functions
         function toRadians(degrees) {
             return degrees * (Math.PI / 180);
@@ -418,12 +424,29 @@
             const maxElev = Math.ceil(maxElevationActual / 10) * 10;
             const elevRange = maxElev - minElev;
             
-            // Draw background
-            ctx.fillStyle = '#ffffff';
+            // Draw radial gradient background
+
+            var centerColour = '#E6F7FF'; // Light blue
+            var edgeColour = '#FFFFFF';   // White
+            centerColour = "#000000"; // Black
+            centerColour = "#FFFFFF"; // White
+            centerColour = '#C6C7FF';   // Light Blue
+            centerColour = '#9EECFF';   // Sky Blue
+
+            edgeColour = '#FFFFFF';   // White
+            edgeColour = '#000000';   // Black
+            edgeColour = '#C6C7FF';   // Light Blue
+            edgeColour = '#D8F2FF';   // Sky Blue
+
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.sqrt(centerX**2 + centerY**2));
+            gradient.addColorStop(0, centerColour); 
+            gradient.addColorStop(1, edgeColour); 
+            ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             // Draw concentric circles for elevation every 10 degrees
             ctx.strokeStyle = '#e0e0e0';
+            ctx.strokeStyle = '#a0a0a0';
             ctx.lineWidth = 1;
             for (let elev = minElev; elev <= maxElev; elev += 10) {
                 const r = maxRadius * (elev - minElev) / elevRange;
@@ -444,6 +467,7 @@
             
             // Draw azimuth lines every 15 degrees
             ctx.strokeStyle = '#e0e0e0';
+            ctx.strokeStyle = '#a0a0a0';
             ctx.lineWidth = 1;
             for (let az = 0; az < 360; az += 15) {
                 const angle = toRadians(az - 90 + declination); // Apply declination rotation
@@ -500,7 +524,8 @@
             }
             
             // Plot data points and collect CSV data
-            const monthColors = ['#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080', '#FF0000', '#FFA500', '#FFFF00', '#008000', '#0000FF', '#800080'];
+            const monthColors = ['#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#FF00FF', 
+                                 '#FF0000', '#FFA500', '#FFFF00', '#00FF00', '#0000FF', '#FF00FF'];
             const csvData = [];
             const hourlyMaxData = {}; // Track max elevation for each hour for labeling
             
@@ -530,7 +555,7 @@
                 csvData.push({
                     date: point.date,
                     time: point.time,
-                    azimuth: point.azimuth.toFixed(2),
+                    azimuth: ((180.0 + point.azimuth) % 360.0).toFixed(2), // program has 0 = South!
                     elevation: point.elevation.toFixed(2),
                     plot_x: ((x - centerX) / maxRadius).toFixed(4),
                     plot_y: ((y - centerY) / maxRadius).toFixed(4)
@@ -538,7 +563,6 @@
                 
                 ctx.fillStyle = point.isAboveHorizon ? monthColors[point.month] : '#808080';
                 ctx.globalAlpha = point.isAboveHorizon ? 0.8 : 0.3;
-                
                 ctx.beginPath();
                 const radius = point.isHourly ? 3 : 1;
                 ctx.arc(x, y, radius, 0, 2 * Math.PI);
@@ -620,7 +644,7 @@
             const legendLineHeight = 15; // Increased for bigger font
             const offset = 16; 
 
-            ctx.font = '12px Arial'; // Bigger font
+            ctx.font = '14px Arial'; // Bigger font
             ctx.textAlign = 'center';
 
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -657,12 +681,16 @@
                 ctx.restore(); // Restore the canvas state
             };
             
-// for local operation (from FILE://) you can have either: bottom left image shown, PNG download blocked - comment out the next line OR
-// bottom left image NOT shown, PNG download allowed - UNcomment out the next line 
-//            img.crossOrigin = 'anonymous'; // Set crossOrigin to avoid tainted canvas issues blocking download
+            // NOTE: Due to browser security, loading images from local filesystem (FILE://) taints the canvas and blocks downloads.
+            // So opening this html file in a browser won;t allow downloading the PNG
+            // You could have PNG Download working locally, but you'd have to give up the image display bottom left.
 //            img.src = 'Compass Rose.png'; // Transparent, N Up (but plot is S up!)
+//            img.src = 'Compass Rose S Up.png'; // Transparent
 //            img.src = 'Sun-Az-El QR Code2.png'; // round-dots QR Code
-            img.src = 'Compass Rose S Up.png'; // Transparent
+
+            // Get filename from URL query parameter, default to 'Compass Rose S Up.png'
+            const overlayFilename = getQueryParam('filename', 'Compass Rose S Up.png');
+            img.src = overlayFilename;
             // Show chart container
             document.getElementById('chartContainer').style.display = 'block';
             setupDownloadButtons();
