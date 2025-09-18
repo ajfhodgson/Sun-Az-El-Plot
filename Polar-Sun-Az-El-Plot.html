@@ -2,6 +2,8 @@
 <html lang="en">
 <!--// Original code converted from Python by Claude: https://claude.ai/chat/e58a67ca-a8c2-4bdf-86fc-32045c60ab3c -->
 <!--// Enhancements made by Gemini: https://gemini.google.com/app/1a83667de0b6b71f -->
+<!--// Allows URL query parameters: 
+       https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?filename=Sun-Az-El%20QR%20Code2.png&c1=#000000&c2=#ffffff -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -259,6 +261,8 @@
         </div>
     </div>
 
+//===================================================================================================================================
+
     <script>
 
         function getQueryParam(name, defaultValue = null) {
@@ -437,6 +441,9 @@
             edgeColour = '#000000';   // Black
             edgeColour = '#C6C7FF';   // Light Blue
             edgeColour = '#D8F2FF';   // Sky Blue
+
+            centerColour = getQueryParam("c1", '#9EECFF') // default Sky Blue
+            edgeColour = getQueryParam("c2", '#D8F2FF') // default Lighter Sky Blue
 
             const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.sqrt(centerX**2 + centerY**2));
             gradient.addColorStop(0, centerColour); 
