@@ -267,7 +267,9 @@
 
         function getQueryParam(name, defaultValue = null) {
             const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(name) || defaultValue;
+            const param = urlParams.get(name);
+            console.log('getQueryParam called for', name, 'found:', param);
+            return param || defaultValue;
         }
     
         // Solar position calculation functions
@@ -288,27 +290,28 @@
         
         function solarPosition(date, latitude, longitude) {
             const lat = toRadians(latitude);
-            const jd = julianDay(date);
-            const n = jd - 2451545.0;
+            const jd = julianDay(date); // days since 1 Jan 4713 BCE in the proleptic Julian calendar
+            const n = jd - 2451545.0; // Days since J2000.0 epoch (1 Jan 2000, 12:00 UT)
             
-            // More accurate solar position calculation including equation of time
-            const L = (280.460 + 0.9856474 * n) % 360; // Mean longitude of sun
-            const g = toRadians((357.528 + 0.9856003 * n) % 360); // Mean anomaly
-            const lambda = toRadians(L + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)); // True longitude
+            const L = (280.460 + 0.9856474 * n) % 360; // Mean longitude of sun (mean => circular not elliptical orbit)
+            // 280.460 is the sun's mean longitude at J2000.0 (in degrees), increasing 0.9856474 per day
+            const g = toRadians((357.528 + 0.9856003 * n) % 360); // 'Mean anomaly' - angle since perhihelion (3/4 Jan) today assuming circular orbit
+            const correction = 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g) // +advance/-retard angle vs circular orbit, 0 at perhihelion and aphelion)
+            const lambda = toRadians( (L + correction) % 360); // True longitude in elliptical orbit
             
             // Obliquity of ecliptic
-            const obliquity = toRadians(23.439 - 0.0000004 * n);
-            
-            // Right ascension and declination
-            const alpha = Math.atan2(Math.cos(obliquity) * Math.sin(lambda), Math.cos(lambda));
-            const delta = Math.asin(Math.sin(obliquity) * Math.sin(lambda));
+            const epsilon = toRadians(23.439 - 0.0000004 * n); // linearised effect of 26,000 year precession of the poles
+            // 23.439 was obliquity at J2000.0, in 2025 it's 0.0036525 less, i.e. 23.4353475
+            // Convert from coordinates in plane of the orbit, to in plane of earth's equator (Right ascension and declination)
+            const alpha = Math.atan2(Math.cos(epsilon) * Math.sin(lambda), Math.cos(lambda)); // Right Ascension (angle from First Point of Aries)
+            const delta = Math.asin(Math.sin(epsilon) * Math.sin(lambda)); // Declination above the equator
             
             // Equation of time (in minutes)
-            const eot = 4 * toDegrees(toRadians(L) - 0.0057183 - alpha);
+            const eot_m = 4 * toDegrees(toRadians(L) - 0.0057183 - alpha); // alpha builds in the impact of elliptical orbit
             
             // Local solar time
             const hours = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
-            const solarTime = hours + eot / 60; // Apply equation of time correction
+            const solarTime = hours + eot_m / 60; // Apply equation of time correction
             
             // Hour angle
             const h = toRadians(15 * (solarTime - 12) + longitude);
@@ -317,12 +320,9 @@
             const elevation = Math.asin(Math.sin(lat) * Math.sin(delta) + Math.cos(lat) * Math.cos(delta) * Math.cos(h));
             const azimuth = Math.atan2(Math.sin(h), Math.cos(h) * Math.sin(lat) - Math.tan(delta) * Math.cos(lat));
             
-            let azimuthDeg = toDegrees(azimuth);
-            if (azimuthDeg < 0) azimuthDeg += 360;
-            
             return {
                 elevation: toDegrees(elevation),
-                azimuth: azimuthDeg
+                azimuth: toDegrees(azimuth % 360)
             };
         }
         
@@ -442,8 +442,8 @@
             edgeColour = '#C6C7FF';   // Light Blue
             edgeColour = '#D8F2FF';   // Sky Blue
 
-            centerColour = getQueryParam("c1", '#9EECFF') // default Sky Blue
-            edgeColour = getQueryParam("c2", '#D8F2FF') // default Lighter Sky Blue
+            centerColour = '#'+getQueryParam("c1", '9EECFF') // default Sky Blue
+            edgeColour = '#'+getQueryParam("c2", 'D8F2FF') // default Lighter Sky Blue
 
             const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.sqrt(centerX**2 + centerY**2));
             gradient.addColorStop(0, centerColour); 
