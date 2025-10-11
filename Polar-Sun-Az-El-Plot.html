@@ -612,7 +612,7 @@
             
             // Add coordinate info at top left
             ctx.fillStyle = '#333333';
-            ctx.font = '14px Arial';
+            ctx.font = '18px Arial';
             ctx.textAlign = 'left';
             ctx.fillText(`Latitude: ${latitude}°`, 20, 30);
             ctx.fillText(`Longitude: ${longitude}°`, 20, 50);
@@ -648,10 +648,10 @@
             // Add month color legend in the bottom right corner
             const legendX = canvas.width - 80;
             const legendY = canvas.height - 140; // Moved down slightly
-            const legendLineHeight = 15; // Increased for bigger font
+            const legendLineHeight = 18; // Increased for bigger font
             const offset = 16; 
 
-            ctx.font = '14px Arial'; // Bigger font
+            ctx.font = '18px Arial'; // Bigger font
             ctx.textAlign = 'center';
 
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
