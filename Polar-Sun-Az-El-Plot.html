@@ -271,6 +271,27 @@
             console.log('getQueryParam called for', name, 'found:', param);
             return param || defaultValue;
         }
+
+        // Pre-seed form fields from URL parameters
+        function initializeFormFromQueryParams() {
+            const latParam = getQueryParam('lat');
+            const lonParam = getQueryParam('lon');
+            const decParam = getQueryParam('dec');
+            const offParam = getQueryParam('off');
+            
+            if (latParam !== null) {
+                document.getElementById('latitude').value = parseFloat(latParam);
+            }
+            if (lonParam !== null) {
+                document.getElementById('longitude').value = parseFloat(lonParam);
+            }
+            if (decParam !== null) {
+                document.getElementById('declination').value = parseFloat(decParam);
+            }
+            if (offParam !== null) {
+                document.getElementById('hoursOffset').value = parseInt(offParam);
+            }
+        }
     
         // Solar position calculation functions
         function toRadians(degrees) {
@@ -780,6 +801,7 @@
         
         // Generate initial plot
         window.addEventListener('load', () => {
+            initializeFormFromQueryParams();
             document.getElementById('generatePlotBtn').addEventListener('click', generatePlot);
             setTimeout(generatePlot, 500);
         });
