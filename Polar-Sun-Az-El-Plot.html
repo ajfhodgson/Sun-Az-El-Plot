@@ -309,6 +309,13 @@
             return param || defaultValue;
         }
 
+        // Latitude and longitude are rounded to 6 decimal places, which is about 0.1 m on the
+        // ground - far finer than needed to centre a satellite tile - and keeps the URL, and so
+        // the QR code, short. parseFloat drops the trailing zeros that toFixed would leave.
+        function round6(value) {
+            return parseFloat(parseFloat(value).toFixed(6));
+        }
+
         // Pre-seed form fields from URL parameters
         function initializeFormFromQueryParams() {
             const latParam = getQueryParam('lat');
@@ -320,10 +327,10 @@
             const mottoParam = getQueryParam('motto');
 
             if (latParam !== null) {
-                document.getElementById('latitude').value = parseFloat(latParam);
+                document.getElementById('latitude').value = round6(latParam);
             }
             if (lonParam !== null) {
-                document.getElementById('longitude').value = parseFloat(lonParam);
+                document.getElementById('longitude').value = round6(lonParam);
             }
             if (decParam !== null) {
                 document.getElementById('declination').value = parseFloat(decParam);
@@ -352,8 +359,8 @@
                 : 'https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html';
 
             const params = new URLSearchParams();
-            params.set('lat', document.getElementById('latitude').value);
-            params.set('lon', document.getElementById('longitude').value);
+            params.set('lat', round6(document.getElementById('latitude').value));
+            params.set('lon', round6(document.getElementById('longitude').value));
             params.set('dec', document.getElementById('declination').value || '0');
             params.set('off', document.getElementById('hoursOffset').value || '0');
             params.set('int', document.getElementById('interval').value);
