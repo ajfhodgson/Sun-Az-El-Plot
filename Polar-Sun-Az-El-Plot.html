@@ -5,7 +5,7 @@
 <!--// Every input field is settable as a URL query parameter. On load the URL is parsed and the plot drawn;
        clicking Generate rebuilds the URL from the fields and reloads the page, which then draws the plot.
        Note: do NOT prefix the colour params with '#' - that would start the URL fragment and the params would be lost.
-       https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?lat=51.1788&lon=-1.8262&dec=180&off=0&int=15&sat=17&c1=9EECFF&c2=D8F2FF&motto=Stonehenge -->
+       https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?lat=51.1788&lon=-1.8262&dec=180&off=0&int=15&sat=19&c1=9EECFF&c2=D8F2FF&motto=Stonehenge -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -197,6 +197,26 @@
             max-width: 100% !important;
             height: auto !important;
         }
+
+        /* The example URL is one long unbreakable token. Without this it sets a huge min-content
+           width on its grid track and drags the whole layout off the side of narrow screens. */
+        .input-group code {
+            overflow-wrap: anywhere;
+            word-break: break-all;
+        }
+
+        /* Phones: one field per row. The Motto field's inline 'grid-column: span 2' otherwise forces
+           the auto-fit grid to two 200px columns, which overflow the screen - hence !important,
+           which is needed to beat an inline style. */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .container { padding: 15px; border-radius: 15px; }
+            h1 { font-size: 1.6em; margin-bottom: 20px; }
+            .input-group { grid-template-columns: 1fr; gap: 15px; padding: 15px; }
+            .input-group .form-group { grid-column: 1 / -1 !important; }
+            .chart-container { padding: 10px; margin: 20px 0; }
+            .download-buttons { flex-direction: column; gap: 10px; }
+        }
     </style>
 </head>
 <body>
@@ -236,7 +256,9 @@
             
             <div class="form-group">
                 <label for="satZoom">Satellite Zoom (0 = none)</label>
-                <input type="number" id="satZoom" value="17" step="1" min="0" max="21">
+                <!-- Esri's imagery cache tops out at z=19 over the UK (z=20 in a few cities), and the
+                     export endpoint returns an error above that, so the chart just draws without imagery. -->
+                <input type="number" id="satZoom" value="19" step="1" min="0" max="20">
             </div>
 
             <div class="form-group" style="grid-column: span 2;">
@@ -247,7 +269,7 @@
             <div class="form-group" style="grid-column: 1 / -1; background: rgba(255, 255, 255, 0.6); padding: 15px; border-radius: 10px; border-left: 4px solid #667eea;">
                 <p style="margin: 0; font-size: 0.9em; color: #555; line-height: 1.5;">
                     <strong>URL Parameters:</strong> The URL accepts query parameters for Latitude (<code>lat</code>), Longitude (<code>lon</code>), Declination (<code>dec</code>), Hours offset (<code>off</code>), Time interval (<code>int</code>), Satellite zoom (<code>sat</code>, 0 = none), Motto (<code>motto</code>), Inner colour (<code>c1</code>) and Outer colour (<code>c2</code>). Clicking <em>Generate</em> rebuilds this URL from the fields and reloads the page; the QR code bottom left encodes the same URL.<br>
-                    <small>Example: <code style="background: #f0f0f0; padding: 4px 6px; border-radius: 3px; font-size: 1.1em; font-family: monospace;">https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?lat=51.1788&lon=-1.8262&dec=180&off=0&int=15&sat=17&c1=ff0000&c2=0000ff&motto=Stonehenge</code></small>
+                    <small>Example: <code style="background: #f0f0f0; padding: 4px 6px; border-radius: 3px; font-size: 1.1em; font-family: monospace;">https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?lat=51.1788&lon=-1.8262&dec=180&off=0&int=15&sat=19&c1=ff0000&c2=0000ff&motto=Stonehenge</code></small>
                 </p>
             </div>
             
@@ -276,7 +298,7 @@
         </div>
     </div>
 
-//===================================================================================================================================
+<!--=============================================================================================================================-->
 
     <script>
 
@@ -575,30 +597,6 @@
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Satellite view at the centre, clipped to a disc of half the horizon-circle radius.
-            // Painted here, before everything else, so the grid, labels and data points all draw on top.
-            if (satImg) {
-                const satRadius = 0.5 * maxRadius * (0 - minElev) / elevRange;
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, satRadius, 0, 2 * Math.PI);
-                ctx.clip();
-                ctx.translate(centerX, centerY);
-                // Imagery is north-up, but this chart is south-up (S at angle 0) and turned by declination.
-                ctx.rotate(toRadians(180 + declination));
-                // A square of side 2r always covers the concentric disc of radius r, whatever the rotation,
-                // so the image needs no oversizing and the scale stays honest.
-                ctx.drawImage(satImg, -satRadius, -satRadius, 2 * satRadius, 2 * satRadius);
-                ctx.restore();
-
-                // Esri's terms require attribution wherever the imagery is shown.
-                // Bottom right, clear of the QR code, the month legend and the centred 'N' label.
-                ctx.fillStyle = '#333333';
-                ctx.font = '11px Arial';
-                ctx.textAlign = 'right';
-                ctx.fillText('Satellite imagery © Esri, Maxar, Earthstar Geographics', canvas.width - 20, canvas.height - 8);
-            }
-
             // Draw concentric circles for elevation every 10 degrees
             ctx.strokeStyle = '#e0e0e0';
             ctx.strokeStyle = '#a0a0a0';
@@ -819,6 +817,30 @@
 
             });
             
+            // Satellite view at the centre, clipped to a disc of half the horizon-circle radius.
+            // Painted last, so it sits on top of the grid, the labels and the plotted solar positions.
+            if (satImg) {
+                const satRadius = 0.5 * maxRadius * (0 - minElev) / elevRange;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, satRadius, 0, 2 * Math.PI);
+                ctx.clip();
+                ctx.translate(centerX, centerY);
+                // Imagery is north-up, but this chart is south-up (S at angle 0) and turned by declination.
+                ctx.rotate(toRadians(180 + declination));
+                // A square of side 2r always covers the concentric disc of radius r, whatever the rotation,
+                // so the image needs no oversizing and the scale stays honest.
+                ctx.drawImage(satImg, -satRadius, -satRadius, 2 * satRadius, 2 * satRadius);
+                ctx.restore();
+
+                // Esri's terms require attribution wherever the imagery is shown.
+                // Bottom right, clear of the QR code, the month legend and the centred 'N' label.
+                ctx.fillStyle = '#333333';
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText('Satellite imagery © Esri, Maxar, Earthstar Geographics', canvas.width - 20, canvas.height - 8);
+            }
+
             // Add QR code overlay in bottom left, encoding the URL that reproduces this exact plot.
             // Generated in JS onto this canvas rather than loaded as a file: nothing crosses an origin,
             // so the canvas is never tainted and the PNG download now works over file:// URLs too.
