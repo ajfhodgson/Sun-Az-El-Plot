@@ -1,17 +1,15 @@
 Here is a html file that plots the solar az/el for times throughout the year. There are a few changes I'd like made, please.
 At each step, ONLY CHANGE THE MINIMUM number of lines of code - don't rewrite the whole thing so I can't easily check the changes.
-1. I would like an additional user parameter, "Hours Offset, GMT/UT +" added, which changes the hour labels. It does not affect the plot itself.
-2. The label (including lat, long, declination and GMT/UT offset), should be placed in the empty top left hand corner (wrapping the text if necessary)
-3. The motto/address should be placed in the empty top right hand corner (wrapping the text if necessary)
-4. I would like the elevation range to be autoscaled, so that the max and min are multiples of 10 degrees, with grid circles every 10 degrees, labelled every 30 degrees either side of 0 degrees. So for example, if the range of elevations was -48 to +62, I want the range to be -50 to +70, with labels at -30, 0, +30, +60
-5. I would like the attached compass rose png file, correctly orientated, placed in the bottom left hand corner
-6. I would like a 'legend' indicating correspondence between months and colours in the bottom right hand corner.  This should look like:
-  Jul
-Aug Jun
-Sep May
-Oct Apr
-Nov Mar
-Dec Feb
-  Jan 
-with each month written in the same colour used in the main plot, centred nicely and quite compact.
-7. I would like the Download PNG and Download CSV to be two separate buttons, not a nested menu
+1. I would like all the parameters that can be entered in input fields, including "Motto or Address" (suitably sluggified), to be 
+pre-settable as url query parameters.
+2. On first loading, the program should parse the url parameres and calculate and display a new plot, with missing parameters defaulted as today 
+3. After the user enters and changed parameters (that might override those in the URL), and clicking "Generate", 
+rather than calculating and displaying the chart, the program should instead create a new URL with the needed parameters and load 
+the page which will then do the calculation and display of the chart
+4. I would like the image that is placed bottom left to be a generated QR code that fully encodes the url and query parameters, so 
+scanning the QR code generates the same plot
+5. I would like the program to fetch a satellite view tile from Google Maps corresponding to the lat/long, and display this in the centre 
+of the chart. This should be controlled by an additional parameter indicating the scale/zoom level of the satellite image, with 0 
+meaning no satellite image to be fetched and displayed.
+Before implementing these, please review C:\Users\andre\Repos\Sun-Az-El-Plot\Polar-Sun-Az-El-Plot.html, ask afor any clarifications required and 
+comment on the feasibility of these changes, particularly 4 and 5.

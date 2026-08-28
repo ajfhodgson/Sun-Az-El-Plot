@@ -2,8 +2,10 @@
 <html lang="en">
 <!--// Original code converted from Python by Claude: https://claude.ai/chat/e58a67ca-a8c2-4bdf-86fc-32045c60ab3c -->
 <!--// Enhancements made by Gemini: https://gemini.google.com/app/1a83667de0b6b71f -->
-<!--// Allows URL query parameters: 
-       https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?filename=Sun-Az-El%20QR%20Code2.png&c1=#000000&c2=#ffffff -->
+<!--// Every input field is settable as a URL query parameter. On load the URL is parsed and the plot drawn;
+       clicking Generate rebuilds the URL from the fields and reloads the page, which then draws the plot.
+       Note: do NOT prefix the colour params with '#' - that would start the URL fragment and the params would be lost.
+       https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?lat=51.1788&lon=-1.8262&dec=180&off=0&int=15&sat=17&c1=9EECFF&c2=D8F2FF&motto=Stonehenge -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,6 +23,7 @@
     <link rel="manifest" href="site.webmanifest">
     <title>Solar Az/El Plotter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="qrcode.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -231,6 +234,11 @@
                 </select>
             </div>
             
+            <div class="form-group">
+                <label for="satZoom">Satellite Zoom (0 = none)</label>
+                <input type="number" id="satZoom" value="17" step="1" min="0" max="21">
+            </div>
+
             <div class="form-group" style="grid-column: span 2;">
                 <label for="motto">Motto or Address</label>
                 <input type="text" id="motto" value="Your motto, message, or address here" maxlength="100">
@@ -238,8 +246,8 @@
             
             <div class="form-group" style="grid-column: 1 / -1; background: rgba(255, 255, 255, 0.6); padding: 15px; border-radius: 10px; border-left: 4px solid #667eea;">
                 <p style="margin: 0; font-size: 0.9em; color: #555; line-height: 1.5;">
-                    <strong>URL Parameters:</strong> The URL accepts query parameters for Latitude (<code>lat</code>), Longitude (<code>lon</code>), Declination (<code>dec</code>), Hours offset (<code>off</code>), Inner colour (<code>c1</code>) and Outer colour (<code>c2</code>).<br>
-                    <small>Example: <code style="background: #f0f0f0; padding: 4px 6px; border-radius: 3px; font-size: 1.1em; font-family: monospace;">https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?lat=51.1788&lon=-1.8262&dec=180&off=0&c1=ff0000&c2=0000ff</code></small>
+                    <strong>URL Parameters:</strong> The URL accepts query parameters for Latitude (<code>lat</code>), Longitude (<code>lon</code>), Declination (<code>dec</code>), Hours offset (<code>off</code>), Time interval (<code>int</code>), Satellite zoom (<code>sat</code>, 0 = none), Motto (<code>motto</code>), Inner colour (<code>c1</code>) and Outer colour (<code>c2</code>). Clicking <em>Generate</em> rebuilds this URL from the fields and reloads the page; the QR code bottom left encodes the same URL.<br>
+                    <small>Example: <code style="background: #f0f0f0; padding: 4px 6px; border-radius: 3px; font-size: 1.1em; font-family: monospace;">https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?lat=51.1788&lon=-1.8262&dec=180&off=0&int=15&sat=17&c1=ff0000&c2=0000ff&motto=Stonehenge</code></small>
                 </p>
             </div>
             
@@ -285,7 +293,10 @@
             const lonParam = getQueryParam('lon');
             const decParam = getQueryParam('dec');
             const offParam = getQueryParam('off');
-            
+            const intParam = getQueryParam('int');
+            const satParam = getQueryParam('sat');
+            const mottoParam = getQueryParam('motto');
+
             if (latParam !== null) {
                 document.getElementById('latitude').value = parseFloat(latParam);
             }
@@ -297,6 +308,72 @@
             }
             if (offParam !== null) {
                 document.getElementById('hoursOffset').value = parseInt(offParam);
+            }
+            if (intParam !== null) {
+                document.getElementById('interval').value = parseInt(intParam);
+            }
+            if (satParam !== null) {
+                document.getElementById('satZoom').value = parseInt(satParam);
+            }
+            if (mottoParam !== null) {
+                document.getElementById('motto').value = mottoParam; // URLSearchParams has already percent-decoded this
+            }
+        }
+
+        // Build the canonical URL that reproduces the plot described by the current form fields.
+        // Used both by the Generate button (to navigate) and by the QR code (to encode).
+        function buildPlotUrl() {
+            // Over file:// the page URL is a local path, which is useless once scanned from a QR code,
+            // so fall back to the published location for anything that isn't http(s).
+            const base = window.location.protocol.startsWith('http')
+                ? window.location.origin + window.location.pathname
+                : 'https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html';
+
+            const params = new URLSearchParams();
+            params.set('lat', document.getElementById('latitude').value);
+            params.set('lon', document.getElementById('longitude').value);
+            params.set('dec', document.getElementById('declination').value || '0');
+            params.set('off', document.getElementById('hoursOffset').value || '0');
+            params.set('int', document.getElementById('interval').value);
+            params.set('sat', document.getElementById('satZoom').value || '0');
+            params.set('c1', getQueryParam('c1', '9EECFF')); // colours have no input field, so carry them through
+            params.set('c2', getQueryParam('c2', 'D8F2FF'));
+
+            const motto = document.getElementById('motto').value.trim();
+            if (motto) params.set('motto', motto); // percent-encoded by URLSearchParams, so text round-trips exactly
+
+            return base + '?' + params.toString();
+        }
+
+        // Shared by the Generate button and the initial render, so bad input is caught before navigating.
+        function validateInputs(latitude, longitude) {
+            if (isNaN(latitude) || isNaN(longitude)) {
+                showStatus('Please enter valid latitude and longitude values.', 'error');
+                return false;
+            }
+            if (latitude < -90 || latitude > 90) {
+                showStatus('Latitude must be between -90 and 90 degrees.', 'error');
+                return false;
+            }
+            if (longitude < -180 || longitude > 180) {
+                showStatus('Longitude must be between -180 and 180 degrees.', 'error');
+                return false;
+            }
+            return true;
+        }
+
+        // Generate button: don't plot here. Rebuild the URL from the fields and load it,
+        // so the displayed chart and the address bar (and hence the QR code) can never disagree.
+        function generateAndReload() {
+            const latitude = parseFloat(document.getElementById('latitude').value);
+            const longitude = parseFloat(document.getElementById('longitude').value);
+            if (!validateInputs(latitude, longitude)) return;
+
+            const url = buildPlotUrl();
+            if (url === window.location.href) {
+                window.location.reload(); // identical URL: assign() would be a no-op in some browsers
+            } else {
+                window.location.assign(url);
             }
         }
     
@@ -362,35 +439,54 @@
             const motto = document.getElementById('motto').value || '';
             const year = 2025; // Fixed year
             const interval = parseInt(document.getElementById('interval').value);
-            
-            if (isNaN(latitude) || isNaN(longitude)) {
-                showStatus('Please enter valid latitude and longitude values.', 'error');
-                return;
-            }
-            
-            if (latitude < -90 || latitude > 90) {
-                showStatus('Latitude must be between -90 and 90 degrees.', 'error');
-                return;
-            }
-            
-            if (longitude < -180 || longitude > 180) {
-                showStatus('Longitude must be between -180 and 180 degrees.', 'error');
-                return;
-            }
-            
+            const satZoom = parseInt(document.getElementById('satZoom').value) || 0;
+
+            if (!validateInputs(latitude, longitude)) return;
+
             showStatus('Calculating solar positions... This may take a moment.', 'loading');
             document.querySelector('button').disabled = true;
-            
+
             setTimeout(() => {
-                try {
-                    const data = calculateSolarData(latitude, longitude, year, interval);
-                    createPolarChart(data, latitude, longitude, declination, motto, hoursOffset);
-                    showStatus('Solar position chart generated successfully!', 'success');
-                } catch (error) {
-                    showStatus('Error generating chart: ' + error.message, 'error');
-                }
-                document.querySelector('button').disabled = false;
+                // Fetch the satellite tile first: it has to be painted underneath the data points,
+                // so it can't be added asynchronously once the chart is already drawn.
+                loadSatelliteImage(latitude, longitude, satZoom).then(satImg => {
+                    try {
+                        const data = calculateSolarData(latitude, longitude, year, interval);
+                        createPolarChart(data, latitude, longitude, declination, motto, hoursOffset, satImg);
+                        showStatus('Solar position chart generated successfully!', 'success');
+                    } catch (error) {
+                        showStatus('Error generating chart: ' + error.message, 'error');
+                    }
+                    document.querySelector('button').disabled = false;
+                });
             }, 100);
+        }
+
+        // Fetch a square, exactly-centred satellite view from Esri's World Imagery service.
+        // Esri needs no API key and returns 'Access-Control-Allow-Origin: *', so with crossOrigin
+        // set the canvas stays untainted and the PNG download keeps working.
+        // Resolves to null if disabled or unavailable, so a failure never blocks the chart.
+        function loadSatelliteImage(latitude, longitude, zoom) {
+            if (!zoom || zoom < 1) return Promise.resolve(null);
+
+            // Web Mercator (EPSG:3857): a square bbox in these units gives an undistorted square image,
+            // avoiding any cos(latitude) correction. Ground extent matches a SIZE-pixel map at this zoom.
+            const R = 6378137.0;                  // Web Mercator sphere radius, metres
+            const SIZE = 512;                     // requested pixel size - 2x the on-canvas size, for a crisp PNG download
+            const x = R * toRadians(longitude);
+            const y = R * Math.log(Math.tan(Math.PI / 4 + toRadians(latitude) / 2));
+            const half = (SIZE / 2) * 156543.03392804097 / Math.pow(2, zoom); // 156543.03... = metres/pixel at zoom 0
+            const bbox = [x - half, y - half, x + half, y + half].join(',');
+            const url = 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export'
+                      + `?bbox=${bbox}&bboxSR=3857&imageSR=3857&size=${SIZE},${SIZE}&format=jpg&f=image`;
+
+            return new Promise(resolve => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous'; // essential: without this the canvas is tainted and PNG download breaks
+                img.onload = () => resolve(img);
+                img.onerror = () => { console.warn('Satellite imagery unavailable:', url); resolve(null); };
+                img.src = url;
+            });
         }
         
         function calculateSolarData(latitude, longitude, year, interval) {
@@ -429,7 +525,7 @@
             return data;
         }
         
-        function createPolarChart(data, latitude, longitude, declination, motto, hoursOffset) {
+        function createPolarChart(data, latitude, longitude, declination, motto, hoursOffset, satImg) {
             const canvas = document.getElementById('solarChart');
             const ctx = canvas.getContext('2d');
             
@@ -478,6 +574,30 @@
             gradient.addColorStop(1, edgeColour); 
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Satellite view at the centre, clipped to a disc of half the horizon-circle radius.
+            // Painted here, before everything else, so the grid, labels and data points all draw on top.
+            if (satImg) {
+                const satRadius = 0.5 * maxRadius * (0 - minElev) / elevRange;
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, satRadius, 0, 2 * Math.PI);
+                ctx.clip();
+                ctx.translate(centerX, centerY);
+                // Imagery is north-up, but this chart is south-up (S at angle 0) and turned by declination.
+                ctx.rotate(toRadians(180 + declination));
+                // A square of side 2r always covers the concentric disc of radius r, whatever the rotation,
+                // so the image needs no oversizing and the scale stays honest.
+                ctx.drawImage(satImg, -satRadius, -satRadius, 2 * satRadius, 2 * satRadius);
+                ctx.restore();
+
+                // Esri's terms require attribution wherever the imagery is shown.
+                // Bottom right, clear of the QR code, the month legend and the centred 'N' label.
+                ctx.fillStyle = '#333333';
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText('Satellite imagery © Esri, Maxar, Earthstar Geographics', canvas.width - 20, canvas.height - 8);
+            }
 
             // Draw concentric circles for elevation every 10 degrees
             ctx.strokeStyle = '#e0e0e0';
@@ -699,38 +819,52 @@
 
             });
             
-            // Add PNG image overlay in bottom left
-            const img = new Image();
-            img.onload = function() {
-                // Position in bottom left corner with some padding
-                const qrSize = 130; // Fixed size for QR code
-                const padding = 20;
-                const qrX = padding;
-                const qrY = canvas.height - qrSize - padding;
-                
-                // Draw the image, rotated by declination to match the plot
-                ctx.save(); // Save the current canvas state
-                ctx.translate(qrX + qrSize/2, qrY + qrSize/2); // Move to the center of where the image will be drawn
-                ctx.rotate(toRadians(declination)); // Rotate by declination angle (converted to radians)
-                ctx.drawImage(img, -qrSize/2, -qrSize/2, qrSize, qrSize); // Draw the image centered on the rotation point                
-                ctx.restore(); // Restore the canvas state
-            };
-            
-            // NOTE: Due to browser security, loading images from local filesystem (FILE://) taints the canvas and blocks downloads.
-            // So opening this html file in a browser won;t allow downloading the PNG
-            // You could have PNG Download working locally, but you'd have to give up the image display bottom left.
-//            img.src = 'Compass Rose.png'; // Transparent, N Up (but plot is S up!)
-//            img.src = 'Compass Rose S Up.png'; // Transparent
-//            img.src = 'Sun-Az-El QR Code2.png'; // round-dots QR Code
+            // Add QR code overlay in bottom left, encoding the URL that reproduces this exact plot.
+            // Generated in JS onto this canvas rather than loaded as a file: nothing crosses an origin,
+            // so the canvas is never tainted and the PNG download now works over file:// URLs too.
+            drawQrCode(ctx, buildPlotUrl(), 20, canvas.height - 20, 150);
 
-            // Get filename from URL query parameter, default to 'Compass Rose S Up.png'
-            const overlayFilename = getQueryParam('filename', 'Compass Rose S Up.png');
-            img.src = overlayFilename;
             // Show chart container
             document.getElementById('chartContainer').style.display = 'block';
             setupDownloadButtons();
         }
         
+        // Draw a QR code for `text` with its bottom-left corner at (left, bottom), aiming for targetSize px.
+        // Deliberately NOT rotated by declination like the old compass-rose overlay was: rotating by a
+        // non-right angle blurs the module edges, and QR readers are rotation-invariant anyway.
+        function drawQrCode(ctx, text, left, bottom, targetSize) {
+            if (typeof qrcode !== 'function') {
+                console.warn('qrcode.min.js not loaded - QR code omitted');
+                return;
+            }
+            const qr = qrcode(0, 'L'); // 0 = smallest version that fits; 'L' error correction keeps modules large
+            qr.addData(text);
+            qr.make();
+
+            const count = qr.getModuleCount();
+            const quiet = 4;                                        // 4-module quiet zone, required by the QR spec
+            const span = count + 2 * quiet;
+            // Integer module size, so every module lands on a whole pixel and nothing is antialiased into mush.
+            // The drawn size therefore varies a little with URL length rather than being forced to targetSize.
+            const scale = Math.max(2, Math.round(targetSize / span));
+            const size = span * scale;
+            const originX = left + quiet * scale;
+            const originY = bottom - size + quiet * scale;
+
+            ctx.save();
+            ctx.fillStyle = '#FFFFFF';                              // opaque backing, so the gradient can't cut contrast
+            ctx.fillRect(left, bottom - size, size, size);
+            ctx.fillStyle = '#000000';
+            for (let row = 0; row < count; row++) {
+                for (let col = 0; col < count; col++) {
+                    if (qr.isDark(row, col)) {
+                        ctx.fillRect(originX + col * scale, originY + row * scale, scale, scale);
+                    }
+                }
+            }
+            ctx.restore();
+        }
+
         function setupDownloadButtons() {
             const downloadButtons = document.getElementById('downloadButtons');
             const pngBtn = document.getElementById('downloadPngBtn');
@@ -806,10 +940,11 @@
             }
         }
         
-        // Generate initial plot
+        // On load, the URL is the single source of truth: seed the fields from it, then plot.
+        // The button no longer plots - it rebuilds the URL and reloads, which comes back through here.
         window.addEventListener('load', () => {
             initializeFormFromQueryParams();
-            document.getElementById('generatePlotBtn').addEventListener('click', generatePlot);
+            document.getElementById('generatePlotBtn').addEventListener('click', generateAndReload);
             setTimeout(generatePlot, 500);
         });
     </script>
