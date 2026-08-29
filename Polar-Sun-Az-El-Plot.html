@@ -654,6 +654,10 @@
                 ctx.stroke();
             }
             
+            // Generate the QR code now, but don't paint it yet: its footprint is needed here so the
+            // compass label that falls behind it can be skipped, while the code itself must go on top.
+            const qrBox = qrCodeBox(buildPlotUrl(), 20, canvas.height - 20, 150);
+
             // Draw direction labels (keep text horizontal despite rotation)
             ctx.fillStyle = '#333333';
             ctx.font = '16px Arial';
@@ -672,10 +676,17 @@
                 {label: 'SE', angle: 315}
             ];
             
+            const labelPad = 12; // half the width of a two-character label at 16px, so the test covers its extent
+
             directions.forEach(dir => {
                 const angle = toRadians(dir.angle - 90 + declination); // Apply declination rotation
                 const x = centerX + labelRadius * Math.cos(angle);
                 const y = centerY + labelRadius * Math.sin(angle);
+                // One label always lands in the QR code's corner. Skip it: since the QR has no opaque
+                // backing it would show through the light modules and eat into the scanning contrast.
+                if (qrBox
+                    && x > qrBox.left - labelPad && x < qrBox.left + qrBox.size + labelPad
+                    && y > qrBox.top - labelPad && y < qrBox.top + qrBox.size + labelPad) return;
                 ctx.fillText(dir.label, x, y);
             });
             
@@ -863,20 +874,21 @@
             // Add QR code overlay in bottom left, encoding the URL that reproduces this exact plot.
             // Generated in JS onto this canvas rather than loaded as a file: nothing crosses an origin,
             // so the canvas is never tainted and the PNG download now works over file:// URLs too.
-            drawQrCode(ctx, buildPlotUrl(), 20, canvas.height - 20, 150);
+            drawQrCode(ctx, qrBox);
 
             // Show chart container
             document.getElementById('chartContainer').style.display = 'block';
             setupDownloadButtons();
         }
         
-        // Draw a QR code for `text` with its bottom-left corner at (left, bottom), aiming for targetSize px.
+        // Build a QR code for `text` and work out its footprint, with its bottom-left corner at
+        // (left, bottom) and aiming for targetSize px. Nothing is drawn - see drawQrCode().
         // Deliberately NOT rotated by declination like the old compass-rose overlay was: rotating by a
         // non-right angle blurs the module edges, and QR readers are rotation-invariant anyway.
-        function drawQrCode(ctx, text, left, bottom, targetSize) {
+        function qrCodeBox(text, left, bottom, targetSize) {
             if (typeof qrcode !== 'function') {
                 console.warn('qrcode.min.js not loaded - QR code omitted');
-                return;
+                return null;
             }
             const qr = qrcode(0, 'L'); // 0 = smallest version that fits; 'L' error correction keeps modules large
             qr.addData(text);
@@ -889,17 +901,23 @@
             // The drawn size therefore varies a little with URL length rather than being forced to targetSize.
             const scale = Math.max(2, Math.round(targetSize / span));
             const size = span * scale;
-            const originX = left + quiet * scale;
-            const originY = bottom - size + quiet * scale;
+            return { qr, count, quiet, scale, size, left, top: bottom - size };
+        }
+
+        // Paint the QR code described by a qrCodeBox() result.
+        function drawQrCode(ctx, box) {
+            if (!box) return;
+            const originX = box.left + box.quiet * box.scale;
+            const originY = box.top + box.quiet * box.scale;
 
             ctx.save();
-            ctx.fillStyle = '#FFFFFF';                              // opaque backing, so the gradient can't cut contrast
-            ctx.fillRect(left, bottom - size, size, size);
+            // No backing rectangle: the light modules and the quiet zone are left transparent,
+            // so the chart's own background shows through.
             ctx.fillStyle = '#000000';
-            for (let row = 0; row < count; row++) {
-                for (let col = 0; col < count; col++) {
-                    if (qr.isDark(row, col)) {
-                        ctx.fillRect(originX + col * scale, originY + row * scale, scale, scale);
+            for (let row = 0; row < box.count; row++) {
+                for (let col = 0; col < box.count; col++) {
+                    if (box.qr.isDark(row, col)) {
+                        ctx.fillRect(originX + col * box.scale, originY + row * box.scale, box.scale, box.scale);
                     }
                 }
             }
