@@ -5,7 +5,19 @@
 <!--// Every input field is settable as a URL query parameter. On load the URL is parsed and the plot drawn;
        clicking Generate rebuilds the URL from the fields and reloads the page, which then draws the plot.
        Note: do NOT prefix the colour params with '#' - that would start the URL fragment and the params would be lost.
-       https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?lat=51.1788&lon=-1.8262&dec=180&off=0&int=15&sat=19&c1=9EECFF&c2=D8F2FF&motto=Stonehenge -->
+       https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html?lat=51.1788&lon=-1.8262&dec=180&off=0&int=15&sat=19&c1=9EECFF&c2=D8F2FF&motto=Stonehenge 
+
+# 51.17886, -1.82617  51.1788, -1.8262   - 5dp => accurate to 1m at 50N
+# 
+# zoom  diameter  resolution
+# 15  1553 m  3.03 m/px
+# 16  777 m 1.52 m/px
+# 17  388 m 0.76 m/px
+# 18  194 m 0.38 m/px
+# 19  97 m  0.19 m/px
+# 20  48.5 m  0.095 m/px
+# 
+# diameter = 512 × 156543.034 × cos(latitude) / 2^zoom  -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -226,12 +238,12 @@
         <div class="input-group">
             <div class="form-group">
                 <label for="latitude">Latitude (°)</label>
-                <input type="number" id="latitude" value="52.0" step="0.1" min="-90" max="90" required>
+                <input type="number" id="latitude" value="51.17886" step="0.1" min="-90" max="90" required>
             </div>
             
             <div class="form-group">
                 <label for="longitude">Longitude (°)</label>
-                <input type="number" id="longitude" value="0.0" step="0.1" min="-180" max="180" required>
+                <input type="number" id="longitude" value="-1.82617" step="0.1" min="-180" max="180" required>
             </div>
             
             <div class="form-group">
@@ -309,11 +321,11 @@
             return param || defaultValue;
         }
 
-        // Latitude and longitude are rounded to 6 decimal places, which is about 0.1 m on the
+        // Latitude and longitude are rounded to 5 decimal places, which is about 1 m on the
         // ground - far finer than needed to centre a satellite tile - and keeps the URL, and so
         // the QR code, short. parseFloat drops the trailing zeros that toFixed would leave.
-        function round6(value) {
-            return parseFloat(parseFloat(value).toFixed(6));
+        function round5(value) {
+            return parseFloat(parseFloat(value).toFixed(5));
         }
 
         // Pre-seed form fields from URL parameters
@@ -327,10 +339,10 @@
             const mottoParam = getQueryParam('motto');
 
             if (latParam !== null) {
-                document.getElementById('latitude').value = round6(latParam);
+                document.getElementById('latitude').value = round5(latParam);
             }
             if (lonParam !== null) {
-                document.getElementById('longitude').value = round6(lonParam);
+                document.getElementById('longitude').value = round5(lonParam);
             }
             if (decParam !== null) {
                 document.getElementById('declination').value = parseFloat(decParam);
@@ -359,8 +371,8 @@
                 : 'https://ajfhodgson.github.io/Sun-Az-El-Plot/Polar-Sun-Az-El-Plot.html';
 
             const params = new URLSearchParams();
-            params.set('lat', round6(document.getElementById('latitude').value));
-            params.set('lon', round6(document.getElementById('longitude').value));
+            params.set('lat', round5(document.getElementById('latitude').value));
+            params.set('lon', round5(document.getElementById('longitude').value));
             params.set('dec', document.getElementById('declination').value || '0');
             params.set('off', document.getElementById('hoursOffset').value || '0');
             params.set('int', document.getElementById('interval').value);
